@@ -1,22 +1,13 @@
-const API_ROOT = 'https://api.airtable.com/v0'
-
-const token = import.meta.env.VITE_AIRTABLE_TOKEN
-const baseId = import.meta.env.VITE_AIRTABLE_BASE_ID
-
-function assertConfigured() {
-  if (!token || !baseId) {
-    throw new Error(
-      'Airtable is not configured. Set VITE_AIRTABLE_TOKEN and VITE_AIRTABLE_BASE_ID in .env.local',
-    )
-  }
-}
+// All requests go through our own /api/* serverless functions (see /api and
+// vite.config.js), which hold the Airtable token server-side. The browser
+// never sees it — see BACKLOG.md for why this replaced the old client-side
+// VITE_AIRTABLE_TOKEN approach.
+const API_ROOT = '/api/airtable'
 
 async function request(path, options = {}) {
-  assertConfigured()
-  const res = await fetch(`${API_ROOT}/${baseId}/${path}`, {
+  const res = await fetch(`${API_ROOT}/${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -28,8 +19,17 @@ async function request(path, options = {}) {
   return res.json()
 }
 
-export function isConfigured() {
-  return Boolean(token && baseId)
+// Server-side config can't be inspected synchronously from the browser, so
+// this checks the /api/health endpoint instead of an env var.
+export async function checkConfigured() {
+  try {
+    const res = await fetch('/api/health')
+    if (!res.ok) return false
+    const data = await res.json()
+    return Boolean(data.configured)
+  } catch {
+    return false
+  }
 }
 
 export function listRecords(table, params = {}) {
@@ -81,27 +81,23 @@ function fileToBase64(file) {
   })
 }
 
-// Uploads a single file to an attachment field on an existing record.
-// Uses the dedicated uploadAttachment endpoint, which is separate from the
-// main data API root/host and takes base64 file content directly.
+// Uploads a single file to an attachment field on an existing record, via
+// our /api/airtable/upload proxy (tableId is unused here — Airtable's
+// uploadAttachment endpoint only needs the record and field — but kept in
+// the signature so call sites don't need to change).
 export async function uploadAttachment(tableId, recordId, fieldId, file) {
-  assertConfigured()
   const base64 = await fileToBase64(file)
-  const res = await fetch(
-    `https://content.airtable.com/v0/${baseId}/${recordId}/${fieldId}/uploadAttachment`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contentType: file.type || 'application/octet-stream',
-        filename: file.name,
-        file: base64,
-      }),
-    },
-  )
+  const res = await fetch(`${API_ROOT}/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recordId,
+      fieldId,
+      filename: file.name,
+      contentType: file.type || 'application/octet-stream',
+      file: base64,
+    }),
+  })
   if (!res.ok) {
     const body = await res.text()
     throw new Error(`Airtable attachment upload failed (${res.status}): ${body}`)
