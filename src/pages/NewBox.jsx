@@ -1,21 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { createRecord } from '../lib/airtable'
-import { CONTAINER_TABLE_ID, ROOM_OPTIONS, STATUS_OPTIONS } from '../lib/constants'
+import { createRecord, listAllRecords } from '../lib/airtable'
+import { CONTAINER_TABLE_ID, ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
+import ChipSelect from '../components/ChipSelect'
+import Disclosure from '../components/Disclosure'
+
+function today() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 export default function NewBox() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     Name: '',
     Room: '',
-    'Box Number': '',
     Status: 'Packed',
     Fragile: false,
     Heavy: false,
     Notes: '',
+    'Packed Date': today(),
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [existingBoxes, setExistingBoxes] = useState(null)
+
+  useEffect(() => {
+    listAllRecords(CONTAINER_TABLE_ID)
+      .then(setExistingBoxes)
+      .catch((err) => setError(err.message))
+  }, [])
+
+  const nextBoxNumber = useMemo(() => {
+    if (!form.Room || !existingBoxes) return null
+    const inRoom = existingBoxes.filter((b) => b.fields.Room === form.Room)
+    const max = inRoom.reduce((m, b) => Math.max(m, b.fields['Box Number'] || 0), 0)
+    return max + 1
+  }, [form.Room, existingBoxes])
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -33,9 +53,10 @@ export default function NewBox() {
         Fragile: form.Fragile,
         Heavy: form.Heavy,
         Notes: form.Notes || undefined,
+        'Packed Date': form['Packed Date'] || undefined,
       }
-      if (form['Box Number'] !== '') {
-        fields['Box Number'] = Number(form['Box Number'])
+      if (nextBoxNumber != null) {
+        fields['Box Number'] = nextBoxNumber
       }
       const record = await createRecord(CONTAINER_TABLE_ID, fields)
       navigate(`/boxes/${record.id}`)
@@ -46,7 +67,7 @@ export default function NewBox() {
   }
 
   return (
-    <section>
+    <section className="entry-screen">
       <div className="page-header">
         <h1>New Box</h1>
         <Link to="/" className="button">
@@ -55,83 +76,77 @@ export default function NewBox() {
       </div>
 
       <form className="form" onSubmit={handleSubmit}>
-        <label>
-          Name
-          <input
-            type="text"
-            value={form.Name}
-            onChange={(e) => update('Name', e.target.value)}
-            placeholder="Optional label"
+        <div className="field-block">
+          <p className="field-label">Room</p>
+          <ChipSelect options={ROOM_OPTIONS} value={form.Room} onChange={(v) => update('Room', v)} />
+        </div>
+
+        {form.Room && (
+          <p className="box-number-preview">
+            This will be <strong>{form.Room.slice(0, 3).toUpperCase()}-{String(nextBoxNumber ?? '?').padStart(3, '0')}</strong>
+          </p>
+        )}
+
+        <div className="field-block">
+          <p className="field-label">Status</p>
+          <ChipSelect
+            options={STATUS_OPTIONS}
+            value={form.Status}
+            onChange={(v) => update('Status', v)}
+            colors={STATUS_COLORS}
           />
-        </label>
-
-        <div className="form-row">
-          <label>
-            Room
-            <select value={form.Room} onChange={(e) => update('Room', e.target.value)} required>
-              <option value="">Select a room…</option>
-              {ROOM_OPTIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Box Number
-            <input
-              type="number"
-              min="1"
-              value={form['Box Number']}
-              onChange={(e) => update('Box Number', e.target.value)}
-              required
-            />
-          </label>
         </div>
 
-        <div className="form-row">
+        <div className="field-block toggle-row">
+          <button
+            type="button"
+            className={`toggle-chip${form.Fragile ? ' toggle-chip-active' : ''}`}
+            onClick={() => update('Fragile', !form.Fragile)}
+            aria-pressed={form.Fragile}
+          >
+            🔺 Fragile
+          </button>
+          <button
+            type="button"
+            className={`toggle-chip${form.Heavy ? ' toggle-chip-active' : ''}`}
+            onClick={() => update('Heavy', !form.Heavy)}
+            aria-pressed={form.Heavy}
+          >
+            🏋️ Heavy
+          </button>
+        </div>
+
+        <Disclosure label="More details (name, date, notes)">
           <label>
-            Status
-            <select value={form.Status} onChange={(e) => update('Status', e.target.value)}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="form-row">
-          <label className="checkbox-label">
+            Name
             <input
-              type="checkbox"
-              checked={form.Fragile}
-              onChange={(e) => update('Fragile', e.target.checked)}
+              type="text"
+              value={form.Name}
+              onChange={(e) => update('Name', e.target.value)}
+              placeholder="Optional label"
             />
-            Fragile
           </label>
-          <label className="checkbox-label">
+          <label>
+            Packed Date
             <input
-              type="checkbox"
-              checked={form.Heavy}
-              onChange={(e) => update('Heavy', e.target.checked)}
+              type="date"
+              value={form['Packed Date']}
+              onChange={(e) => update('Packed Date', e.target.value)}
             />
-            Heavy
           </label>
-        </div>
-
-        <label>
-          Notes
-          <textarea value={form.Notes} onChange={(e) => update('Notes', e.target.value)} rows={3} />
-        </label>
+          <label>
+            Notes
+            <textarea value={form.Notes} onChange={(e) => update('Notes', e.target.value)} rows={3} />
+          </label>
+        </Disclosure>
 
         {error && <p className="error">{error}</p>}
 
-        <button type="submit" className="button primary" disabled={saving}>
-          {saving ? 'Creating…' : 'Create Box'}
-        </button>
+        <div className="sticky-action-bar">
+          <button type="submit" className="button primary button-large" disabled={saving || !form.Room}>
+            {saving ? 'Creating…' : 'Create Box'}
+          </button>
+        </div>
       </form>
     </section>
   )

@@ -1,8 +1,8 @@
 export const CONTAINER_TABLE_ID = 'tblXC4XcsLG8WBdKO'
 export const ITEMS_TABLE_ID = 'tbl5jAPVVgc3oV0G0'
 
-export const CONTAINER_PHOTO_FIELD_ID = 'fld0CUrfpsJIgFKsP'
-export const ITEM_PHOTO_FIELD_ID = 'fld0vyouCbW1gYLij'
+export const CONTAINER_EXTERIOR_PHOTO_FIELD_ID = 'fld0CUrfpsJIgFKsP' // "Photo of Box"
+export const CONTAINER_CONTENTS_PHOTO_FIELD_ID = 'fldpHB2PxT1dDRTL2' // "Photo of Contents"
 
 export const ROOM_OPTIONS = [
   'Kitchen',

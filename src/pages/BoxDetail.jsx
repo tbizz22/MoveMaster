@@ -8,13 +8,16 @@ import {
   uploadAttachment,
 } from '../lib/airtable'
 import { useSpeechRecognition } from '../lib/useSpeechRecognition'
+import ChipSelect from '../components/ChipSelect'
+import Disclosure from '../components/Disclosure'
 import {
   CONTAINER_TABLE_ID,
   ITEMS_TABLE_ID,
-  CONTAINER_PHOTO_FIELD_ID,
-  ITEM_PHOTO_FIELD_ID,
+  CONTAINER_EXTERIOR_PHOTO_FIELD_ID,
+  CONTAINER_CONTENTS_PHOTO_FIELD_ID,
   ROOM_OPTIONS,
   STATUS_OPTIONS,
+  STATUS_COLORS,
 } from '../lib/constants'
 
 export default function BoxDetail() {
@@ -25,7 +28,8 @@ export default function BoxDetail() {
   const [items, setItems] = useState(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [photoUploading, setPhotoUploading] = useState(false)
+  const [exteriorUploading, setExteriorUploading] = useState(false)
+  const [contentsUploading, setContentsUploading] = useState(false)
 
   useEffect(() => {
     load()
@@ -75,22 +79,27 @@ export default function BoxDetail() {
     }
   }
 
-  async function handlePhotoUpload(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setPhotoUploading(true)
-    setError('')
-    try {
-      await uploadAttachment(CONTAINER_TABLE_ID, id, CONTAINER_PHOTO_FIELD_ID, file)
-      const record = await getRecord(CONTAINER_TABLE_ID, id)
-      setBox(record)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setPhotoUploading(false)
-      e.target.value = ''
+  function makePhotoUploadHandler(fieldId, setUploading) {
+    return async (e) => {
+      const file = e.target.files[0]
+      if (!file) return
+      setUploading(true)
+      setError('')
+      try {
+        await uploadAttachment(CONTAINER_TABLE_ID, id, fieldId, file)
+        const record = await getRecord(CONTAINER_TABLE_ID, id)
+        setBox(record)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setUploading(false)
+        e.target.value = ''
+      }
     }
   }
+
+  const handleExteriorPhotoUpload = makePhotoUploadHandler(CONTAINER_EXTERIOR_PHOTO_FIELD_ID, setExteriorUploading)
+  const handleContentsPhotoUpload = makePhotoUploadHandler(CONTAINER_CONTENTS_PHOTO_FIELD_ID, setContentsUploading)
 
   async function refreshItem(itemId) {
     const record = await getRecord(ITEMS_TABLE_ID, itemId)
@@ -147,27 +156,72 @@ export default function BoxDetail() {
 
       <div className="detail-grid">
         <div className="detail-fields">
+          <div className="field-block">
+            <p className="field-label">Room</p>
+            <ChipSelect options={ROOM_OPTIONS} value={f.Room || ''} onChange={(v) => saveField('Room', v)} />
+          </div>
+
+          <div className="field-block">
+            <p className="field-label">Status</p>
+            <ChipSelect
+              options={STATUS_OPTIONS}
+              value={f.Status || ''}
+              onChange={(v) => saveField('Status', v)}
+              colors={STATUS_COLORS}
+            />
+          </div>
+
+          <div className="field-block toggle-row">
+            <button
+              type="button"
+              className={`toggle-chip${f.Fragile ? ' toggle-chip-active' : ''}`}
+              onClick={() => saveField('Fragile', !f.Fragile)}
+              aria-pressed={!!f.Fragile}
+            >
+              🔺 Fragile
+            </button>
+            <button
+              type="button"
+              className={`toggle-chip${f.Heavy ? ' toggle-chip-active' : ''}`}
+              onClick={() => saveField('Heavy', !f.Heavy)}
+              aria-pressed={!!f.Heavy}
+            >
+              🏋️ Heavy
+            </button>
+          </div>
+
           <label>
-            Name
+            Packed Date
             <input
-              type="text"
-              defaultValue={f.Name || ''}
-              onBlur={(e) => e.target.value !== (f.Name || '') && saveField('Name', e.target.value)}
+              type="date"
+              value={f['Packed Date'] || ''}
+              onChange={(e) => saveField('Packed Date', e.target.value || null)}
             />
           </label>
 
-          <div className="form-row">
+          <Disclosure label="More details (name, box number, destination, notes)">
             <label>
-              Room
-              <select value={f.Room || ''} onChange={(e) => saveField('Room', e.target.value)}>
-                <option value="">—</option>
-                {ROOM_OPTIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+              Name
+              <input
+                type="text"
+                defaultValue={f.Name || ''}
+                onBlur={(e) => e.target.value !== (f.Name || '') && saveField('Name', e.target.value)}
+              />
             </label>
+
+            <label>
+              Box Number
+              <input
+                type="number"
+                min="1"
+                defaultValue={f['Box Number'] ?? ''}
+                onBlur={(e) => {
+                  const val = e.target.value === '' ? null : Number(e.target.value)
+                  if (val !== (f['Box Number'] ?? null)) saveField('Box Number', val)
+                }}
+              />
+            </label>
+
             <label>
               Destination Room
               <select
@@ -182,80 +236,64 @@ export default function BoxDetail() {
                 ))}
               </select>
             </label>
-          </div>
 
-          <div className="form-row">
             <label>
-              Box Number
-              <input
-                type="number"
-                min="1"
-                defaultValue={f['Box Number'] ?? ''}
-                onBlur={(e) => {
-                  const val = e.target.value === '' ? null : Number(e.target.value)
-                  if (val !== (f['Box Number'] ?? null)) saveField('Box Number', val)
-                }}
+              Notes
+              <textarea
+                defaultValue={f.Notes || ''}
+                rows={3}
+                onBlur={(e) => e.target.value !== (f.Notes || '') && saveField('Notes', e.target.value)}
               />
             </label>
-            <label>
-              Status
-              <select value={f.Status || ''} onChange={(e) => saveField('Status', e.target.value)}>
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="form-row">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={!!f.Fragile}
-                onChange={(e) => saveField('Fragile', e.target.checked)}
-              />
-              Fragile
-            </label>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={!!f.Heavy}
-                onChange={(e) => saveField('Heavy', e.target.checked)}
-              />
-              Heavy
-            </label>
-          </div>
-
-          <label>
-            Packed Date
-            <input
-              type="date"
-              value={f['Packed Date'] || ''}
-              onChange={(e) => saveField('Packed Date', e.target.value || null)}
-            />
-          </label>
-
-          <label>
-            Notes
-            <textarea
-              defaultValue={f.Notes || ''}
-              rows={3}
-              onBlur={(e) => e.target.value !== (f.Notes || '') && saveField('Notes', e.target.value)}
-            />
-          </label>
+          </Disclosure>
         </div>
 
         <div className="detail-photo">
-          <p className="field-label">Photo of Box</p>
-          {(f['Photo of Box'] || []).map((att) => (
-            <img key={att.id} src={att.thumbnails?.large?.url || att.url} alt={f.Name || 'Box'} className="box-photo" />
-          ))}
-          <label className="button">
-            {photoUploading ? 'Uploading…' : 'Upload photo'}
-            <input type="file" accept="image/*" hidden onChange={handlePhotoUpload} disabled={photoUploading} />
-          </label>
+          <div className="photo-block">
+            <p className="field-label">Exterior photo</p>
+            {(f['Photo of Box'] || []).map((att) => (
+              <img
+                key={att.id}
+                src={att.thumbnails?.large?.url || att.url}
+                alt="Box exterior"
+                className="box-photo"
+              />
+            ))}
+            <label className="button button-large">
+              {exteriorUploading ? 'Uploading…' : (f['Photo of Box'] || []).length ? 'Retake exterior photo' : '📷 Exterior photo'}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={handleExteriorPhotoUpload}
+                disabled={exteriorUploading}
+              />
+            </label>
+          </div>
+
+          <div className="photo-block">
+            <p className="field-label">Contents photo</p>
+            {(f['Photo of Contents'] || []).map((att) => (
+              <img
+                key={att.id}
+                src={att.thumbnails?.large?.url || att.url}
+                alt="Everything packed inside the box"
+                className="box-photo"
+              />
+            ))}
+            <label className="button button-large">
+              {contentsUploading ? 'Uploading…' : (f['Photo of Contents'] || []).length ? 'Retake contents photo' : '📷 Contents photo'}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={handleContentsPhotoUpload}
+                disabled={contentsUploading}
+              />
+            </label>
+          </div>
         </div>
       </div>
 
@@ -370,7 +408,7 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
                 Stop
               </button>
             ) : (
-              <button type="button" className="button small" onClick={() => speech.start()}>
+              <button type="button" className="button small" onClick={() => speech.resume()}>
                 Resume
               </button>
             )}
@@ -433,7 +471,6 @@ function ItemCard({ item, onRefresh }) {
   const [name, setName] = useState(item.fields.Name || '')
   const [notes, setNotes] = useState(item.fields.Notes || '')
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSave() {
@@ -447,22 +484,6 @@ function ItemCard({ item, onRefresh }) {
       setError(err.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handlePhoto(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setUploading(true)
-    setError('')
-    try {
-      await uploadAttachment(ITEMS_TABLE_ID, item.id, ITEM_PHOTO_FIELD_ID, file)
-      await onRefresh()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setUploading(false)
-      e.target.value = ''
     }
   }
 
@@ -503,10 +524,6 @@ function ItemCard({ item, onRefresh }) {
               className="item-photo"
             />
           ))}
-          <label className="button small">
-            {uploading ? 'Uploading…' : 'Upload photo'}
-            <input type="file" accept="image/*" hidden onChange={handlePhoto} disabled={uploading} />
-          </label>
         </>
       )}
       {error && <p className="error">{error}</p>}

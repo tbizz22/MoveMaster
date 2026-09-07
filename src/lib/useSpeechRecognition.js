@@ -8,7 +8,10 @@ export function useSpeechRecognition() {
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState('')
   const recognitionRef = useRef(null)
-  const baseTranscriptRef = useRef('')
+  // Text finalized in a prior listening session (before an explicit stop()).
+  const committedRef = useRef('')
+  // Text finalized within the current listening session.
+  const sessionFinalRef = useRef('')
 
   useEffect(() => {
     if (!SpeechRecognitionImpl) return
@@ -18,20 +21,23 @@ export function useSpeechRecognition() {
     recognition.lang = 'en-US'
 
     recognition.onresult = (event) => {
+      // Rebuild the current session's final text from the full results list
+      // every time, rather than appending deltas via event.resultIndex.
+      // Chrome's continuous mode periodically restarts its internal session
+      // without firing onend and replays already-finalized results from
+      // index 0 — appending those again caused dictated text to echo/duplicate.
       let interim = ''
       let final = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const text = event.results[i][0].transcript
         if (event.results[i].isFinal) {
-          final += text
+          final += `${text} `
         } else {
           interim += text
         }
       }
-      if (final) {
-        baseTranscriptRef.current = `${baseTranscriptRef.current} ${final}`.trim()
-      }
-      setTranscript(`${baseTranscriptRef.current} ${interim}`.trim())
+      sessionFinalRef.current = final.trim()
+      setTranscript(`${committedRef.current} ${sessionFinalRef.current} ${interim}`.trim())
     }
 
     recognition.onerror = (event) => {
@@ -48,11 +54,23 @@ export function useSpeechRecognition() {
     }
   }, [])
 
+  // Starts fresh, discarding any prior transcript (first mic-open of a dictation).
   const start = useCallback(() => {
     if (!recognitionRef.current) return
     setError('')
-    baseTranscriptRef.current = ''
+    committedRef.current = ''
+    sessionFinalRef.current = ''
     setTranscript('')
+    recognitionRef.current.start()
+    setListening(true)
+  }, [])
+
+  // Resumes listening without discarding transcript already captured (e.g. after Stop).
+  const resume = useCallback(() => {
+    if (!recognitionRef.current) return
+    setError('')
+    committedRef.current = `${committedRef.current} ${sessionFinalRef.current}`.trim()
+    sessionFinalRef.current = ''
     recognitionRef.current.start()
     setListening(true)
   }, [])
@@ -63,7 +81,8 @@ export function useSpeechRecognition() {
   }, [])
 
   const reset = useCallback(() => {
-    baseTranscriptRef.current = ''
+    committedRef.current = ''
+    sessionFinalRef.current = ''
     setTranscript('')
   }, [])
 
@@ -74,6 +93,7 @@ export function useSpeechRecognition() {
     setTranscript,
     error,
     start,
+    resume,
     stop,
     reset,
   }

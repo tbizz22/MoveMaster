@@ -22,10 +22,3 @@ npm run dev
 Note: this is a client-side SPA, so the Airtable token ships to the browser. Fine for a
 personal tool used locally/on your own network; don't deploy this publicly without moving
 Airtable calls behind a server.
-
-## Roadmap
-
-- [x] Hello world + Airtable connection check
-- [ ] Box list / detail views backed by Airtable
-- [ ] Photo capture & upload (attachment field)
-- [ ] QR / label generation and printable label sheets
