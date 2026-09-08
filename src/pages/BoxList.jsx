@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listAllRecords } from '../lib/airtable'
-import { CONTAINER_TABLE_ID, ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
+import { listContainers, listItemCounts } from '../lib/db'
+import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
 
 export default function BoxList() {
   const [boxes, setBoxes] = useState(null)
+  const [itemCounts, setItemCounts] = useState({})
   const [error, setError] = useState('')
   const [roomFilter, setRoomFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -17,8 +18,9 @@ export default function BoxList() {
   async function load() {
     setError('')
     try {
-      const records = await listAllRecords(CONTAINER_TABLE_ID)
-      setBoxes(records)
+      const [containers, counts] = await Promise.all([listContainers(), listItemCounts()])
+      setBoxes(containers)
+      setItemCounts(counts)
     } catch (err) {
       setError(err.message)
     }
@@ -27,8 +29,8 @@ export default function BoxList() {
   const filtered = useMemo(() => {
     if (!boxes) return []
     return boxes.filter((b) => {
-      if (roomFilter && b.fields.Room !== roomFilter) return false
-      if (statusFilter && b.fields.Status !== statusFilter) return false
+      if (roomFilter && b.room !== roomFilter) return false
+      if (statusFilter && b.status !== statusFilter) return false
       return true
     })
   }, [boxes, roomFilter, statusFilter])
@@ -37,7 +39,7 @@ export default function BoxList() {
     if (!groupByRoom) return { All: filtered }
     const groups = {}
     for (const box of filtered) {
-      const room = box.fields.Room || 'Unassigned'
+      const room = box.room || 'Unassigned'
       if (!groups[room]) groups[room] = []
       groups[room].push(box)
     }
@@ -102,24 +104,21 @@ export default function BoxList() {
               <li key={box.id}>
                 <Link to={`/boxes/${box.id}`} className="box-card">
                   <div className="box-card-top">
-                    <span className="box-id">{box.fields['Box ID'] || box.fields.Name || 'Untitled'}</span>
-                    {box.fields.Status && (
-                      <span
-                        className="status-badge"
-                        style={{ background: STATUS_COLORS[box.fields.Status] }}
-                      >
-                        {box.fields.Status}
+                    <span className="box-id">{box.box_id || box.name || 'Untitled'}</span>
+                    {box.status && (
+                      <span className="status-badge" style={{ background: STATUS_COLORS[box.status] }}>
+                        {box.status}
                       </span>
                     )}
                   </div>
                   <div className="box-card-meta">
-                    <span>{box.fields.Room || 'No room'}</span>
-                    <span>{(box.fields.Items || []).length} item(s)</span>
+                    <span>{box.room || 'No room'}</span>
+                    <span>{itemCounts[box.id] || 0} item(s)</span>
                   </div>
-                  {(box.fields.Fragile || box.fields.Heavy) && (
+                  {(box.fragile || box.heavy) && (
                     <div className="box-card-badges">
-                      {box.fields.Fragile && <span className="tag tag-fragile">Fragile</span>}
-                      {box.fields.Heavy && <span className="tag tag-heavy">Heavy</span>}
+                      {box.fragile && <span className="tag tag-fragile">Fragile</span>}
+                      {box.heavy && <span className="tag tag-heavy">Heavy</span>}
                     </div>
                   )}
                 </Link>

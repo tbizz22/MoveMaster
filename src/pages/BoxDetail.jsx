@@ -1,28 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import {
-  getRecord,
-  listAllRecords,
-  updateRecord,
-  createRecord,
-  uploadAttachment,
-} from '../lib/airtable'
+  getContainer,
+  listContainers,
+  updateContainer,
+  listItems,
+  createItem,
+  createItems,
+  updateItem,
+  uploadContainerPhoto,
+  getSignedPhotoUrl,
+} from '../lib/db'
+import { useHousehold } from '../lib/HouseholdContext'
 import { useSpeechRecognition } from '../lib/useSpeechRecognition'
 import ChipSelect from '../components/ChipSelect'
 import Disclosure from '../components/Disclosure'
-import {
-  CONTAINER_TABLE_ID,
-  ITEMS_TABLE_ID,
-  CONTAINER_EXTERIOR_PHOTO_FIELD_ID,
-  CONTAINER_CONTENTS_PHOTO_FIELD_ID,
-  ROOM_OPTIONS,
-  STATUS_OPTIONS,
-  STATUS_COLORS,
-} from '../lib/constants'
+import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
 
 export default function BoxDetail() {
   const { id } = useParams()
-  const navigate = useNavigate()
+  const { householdId } = useHousehold()
   const [box, setBox] = useState(null)
   const [allBoxes, setAllBoxes] = useState(null)
   const [items, setItems] = useState(null)
@@ -30,6 +27,8 @@ export default function BoxDetail() {
   const [saving, setSaving] = useState(false)
   const [exteriorUploading, setExteriorUploading] = useState(false)
   const [contentsUploading, setContentsUploading] = useState(false)
+  const [exteriorUrl, setExteriorUrl] = useState(null)
+  const [contentsUrl, setContentsUrl] = useState(null)
 
   useEffect(() => {
     load()
@@ -38,19 +37,12 @@ export default function BoxDetail() {
   async function load() {
     setError('')
     try {
-      const [record, all] = await Promise.all([
-        getRecord(CONTAINER_TABLE_ID, id),
-        listAllRecords(CONTAINER_TABLE_ID),
-      ])
+      const [record, all] = await Promise.all([getContainer(id), listContainers()])
       setBox(record)
       setAllBoxes(all)
-      const itemIds = record.fields.Items || []
-      if (itemIds.length) {
-        const fetched = await Promise.all(itemIds.map((itemId) => getRecord(ITEMS_TABLE_ID, itemId)))
-        setItems(fetched)
-      } else {
-        setItems([])
-      }
+      setExteriorUrl(record.exterior_photo_path ? await getSignedPhotoUrl(record.exterior_photo_path) : null)
+      setContentsUrl(record.contents_photo_path ? await getSignedPhotoUrl(record.contents_photo_path) : null)
+      setItems(await listItems(id))
     } catch (err) {
       setError(err.message)
     }
@@ -58,10 +50,10 @@ export default function BoxDetail() {
 
   const sequence = useMemo(() => {
     if (!box || !allBoxes) return null
-    const room = box.fields.Room
+    const room = box.room
     if (!room) return null
-    const sameRoom = allBoxes.filter((b) => b.fields.Room === room)
-    const sorted = [...sameRoom].sort((a, b) => (a.fields['Box Number'] || 0) - (b.fields['Box Number'] || 0))
+    const sameRoom = allBoxes.filter((b) => b.room === room)
+    const sorted = [...sameRoom].sort((a, b) => (a.box_number || 0) - (b.box_number || 0))
     const position = sorted.findIndex((b) => b.id === box.id)
     return { n: position + 1, m: sorted.length }
   }, [box, allBoxes])
@@ -70,8 +62,8 @@ export default function BoxDetail() {
     setSaving(true)
     setError('')
     try {
-      const updated = await updateRecord(CONTAINER_TABLE_ID, id, { [field]: value })
-      setBox((b) => ({ ...b, fields: { ...b.fields, ...updated.fields } }))
+      const updated = await updateContainer(id, { [field]: value })
+      setBox((b) => ({ ...b, ...updated }))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -79,50 +71,40 @@ export default function BoxDetail() {
     }
   }
 
-  function makePhotoUploadHandler(fieldId, setUploading) {
-    return async (e) => {
-      const file = e.target.files[0]
-      if (!file) return
-      setUploading(true)
-      setError('')
-      try {
-        await uploadAttachment(CONTAINER_TABLE_ID, id, fieldId, file)
-        const record = await getRecord(CONTAINER_TABLE_ID, id)
-        setBox(record)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setUploading(false)
-        e.target.value = ''
-      }
+  async function handlePhotoUpload(kind, e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const setUploading = kind === 'exterior' ? setExteriorUploading : setContentsUploading
+    const setUrl = kind === 'exterior' ? setExteriorUrl : setContentsUrl
+    setUploading(true)
+    setError('')
+    try {
+      const url = await uploadContainerPhoto(householdId, id, kind, file)
+      setUrl(url)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
     }
   }
 
-  const handleExteriorPhotoUpload = makePhotoUploadHandler(CONTAINER_EXTERIOR_PHOTO_FIELD_ID, setExteriorUploading)
-  const handleContentsPhotoUpload = makePhotoUploadHandler(CONTAINER_CONTENTS_PHOTO_FIELD_ID, setContentsUploading)
-
-  async function refreshItem(itemId) {
-    const record = await getRecord(ITEMS_TABLE_ID, itemId)
-    setItems((prev) => prev.map((it) => (it.id === itemId ? record : it)))
+  async function refreshItem() {
+    setItems(await listItems(id))
   }
 
   async function handleAddItem(name) {
-    const record = await createRecord(ITEMS_TABLE_ID, { Name: name, Container: [id] })
+    const record = await createItem(householdId, id, { name })
     setItems((prev) => [...prev, record])
-    setBox((b) => ({ ...b, fields: { ...b.fields, Items: [...(b.fields.Items || []), record.id] } }))
   }
 
   async function handleAddItems(names) {
-    const created = []
-    for (const name of names) {
-      const record = await createRecord(ITEMS_TABLE_ID, { Name: name, Container: [id] })
-      created.push(record)
-    }
+    const created = await createItems(
+      householdId,
+      id,
+      names.map((name) => ({ name })),
+    )
     setItems((prev) => [...prev, ...created])
-    setBox((b) => ({
-      ...b,
-      fields: { ...b.fields, Items: [...(b.fields.Items || []), ...created.map((r) => r.id)] },
-    }))
   }
 
   if (error && !box) {
@@ -136,19 +118,19 @@ export default function BoxDetail() {
 
   if (!box) return <p>Loading…</p>
 
-  const f = box.fields
+  const f = box
 
   return (
     <section>
       <div className="page-header">
-        <h1>{f['Box ID'] || f.Name || 'Untitled box'}</h1>
+        <h1>{f.box_id || f.name || 'Untitled box'}</h1>
         <Link to="/" className="button">
           Back
         </Link>
       </div>
       {sequence && (
         <p className="sequence">
-          {sequence.n} of {sequence.m} in {f.Room}
+          {sequence.n} of {sequence.m} in {f.room}
         </p>
       )}
       {saving && <p className="saving-indicator">Saving…</p>}
@@ -158,15 +140,15 @@ export default function BoxDetail() {
         <div className="detail-fields">
           <div className="field-block">
             <p className="field-label">Room</p>
-            <ChipSelect options={ROOM_OPTIONS} value={f.Room || ''} onChange={(v) => saveField('Room', v)} />
+            <ChipSelect options={ROOM_OPTIONS} value={f.room || ''} onChange={(v) => saveField('room', v)} />
           </div>
 
           <div className="field-block">
             <p className="field-label">Status</p>
             <ChipSelect
               options={STATUS_OPTIONS}
-              value={f.Status || ''}
-              onChange={(v) => saveField('Status', v)}
+              value={f.status || ''}
+              onChange={(v) => saveField('status', v)}
               colors={STATUS_COLORS}
             />
           </div>
@@ -174,17 +156,17 @@ export default function BoxDetail() {
           <div className="field-block toggle-row">
             <button
               type="button"
-              className={`toggle-chip${f.Fragile ? ' toggle-chip-active' : ''}`}
-              onClick={() => saveField('Fragile', !f.Fragile)}
-              aria-pressed={!!f.Fragile}
+              className={`toggle-chip${f.fragile ? ' toggle-chip-active' : ''}`}
+              onClick={() => saveField('fragile', !f.fragile)}
+              aria-pressed={!!f.fragile}
             >
               🔺 Fragile
             </button>
             <button
               type="button"
-              className={`toggle-chip${f.Heavy ? ' toggle-chip-active' : ''}`}
-              onClick={() => saveField('Heavy', !f.Heavy)}
-              aria-pressed={!!f.Heavy}
+              className={`toggle-chip${f.heavy ? ' toggle-chip-active' : ''}`}
+              onClick={() => saveField('heavy', !f.heavy)}
+              aria-pressed={!!f.heavy}
             >
               🏋️ Heavy
             </button>
@@ -194,8 +176,8 @@ export default function BoxDetail() {
             Packed Date
             <input
               type="date"
-              value={f['Packed Date'] || ''}
-              onChange={(e) => saveField('Packed Date', e.target.value || null)}
+              value={f.packed_date || ''}
+              onChange={(e) => saveField('packed_date', e.target.value || null)}
             />
           </label>
 
@@ -204,8 +186,8 @@ export default function BoxDetail() {
               Name
               <input
                 type="text"
-                defaultValue={f.Name || ''}
-                onBlur={(e) => e.target.value !== (f.Name || '') && saveField('Name', e.target.value)}
+                defaultValue={f.name || ''}
+                onBlur={(e) => e.target.value !== (f.name || '') && saveField('name', e.target.value)}
               />
             </label>
 
@@ -214,10 +196,10 @@ export default function BoxDetail() {
               <input
                 type="number"
                 min="1"
-                defaultValue={f['Box Number'] ?? ''}
+                defaultValue={f.box_number ?? ''}
                 onBlur={(e) => {
                   const val = e.target.value === '' ? null : Number(e.target.value)
-                  if (val !== (f['Box Number'] ?? null)) saveField('Box Number', val)
+                  if (val !== (f.box_number ?? null)) saveField('box_number', val)
                 }}
               />
             </label>
@@ -225,8 +207,8 @@ export default function BoxDetail() {
             <label>
               Destination Room
               <select
-                value={f['Destination Room'] || ''}
-                onChange={(e) => saveField('Destination Room', e.target.value)}
+                value={f.destination_room || ''}
+                onChange={(e) => saveField('destination_room', e.target.value)}
               >
                 <option value="">—</option>
                 {ROOM_OPTIONS.map((r) => (
@@ -240,9 +222,9 @@ export default function BoxDetail() {
             <label>
               Notes
               <textarea
-                defaultValue={f.Notes || ''}
+                defaultValue={f.notes || ''}
                 rows={3}
-                onBlur={(e) => e.target.value !== (f.Notes || '') && saveField('Notes', e.target.value)}
+                onBlur={(e) => e.target.value !== (f.notes || '') && saveField('notes', e.target.value)}
               />
             </label>
           </Disclosure>
@@ -251,22 +233,15 @@ export default function BoxDetail() {
         <div className="detail-photo">
           <div className="photo-block">
             <p className="field-label">Exterior photo</p>
-            {(f['Photo of Box'] || []).map((att) => (
-              <img
-                key={att.id}
-                src={att.thumbnails?.large?.url || att.url}
-                alt="Box exterior"
-                className="box-photo"
-              />
-            ))}
+            {exteriorUrl && <img src={exteriorUrl} alt="Box exterior" className="box-photo" />}
             <label className="button button-large">
-              {exteriorUploading ? 'Uploading…' : (f['Photo of Box'] || []).length ? 'Retake exterior photo' : '📷 Exterior photo'}
+              {exteriorUploading ? 'Uploading…' : exteriorUrl ? 'Retake exterior photo' : '📷 Exterior photo'}
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 hidden
-                onChange={handleExteriorPhotoUpload}
+                onChange={(e) => handlePhotoUpload('exterior', e)}
                 disabled={exteriorUploading}
               />
             </label>
@@ -274,22 +249,15 @@ export default function BoxDetail() {
 
           <div className="photo-block">
             <p className="field-label">Contents photo</p>
-            {(f['Photo of Contents'] || []).map((att) => (
-              <img
-                key={att.id}
-                src={att.thumbnails?.large?.url || att.url}
-                alt="Everything packed inside the box"
-                className="box-photo"
-              />
-            ))}
+            {contentsUrl && <img src={contentsUrl} alt="Everything packed inside the box" className="box-photo" />}
             <label className="button button-large">
-              {contentsUploading ? 'Uploading…' : (f['Photo of Contents'] || []).length ? 'Retake contents photo' : '📷 Contents photo'}
+              {contentsUploading ? 'Uploading…' : contentsUrl ? 'Retake contents photo' : '📷 Contents photo'}
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 hidden
-                onChange={handleContentsPhotoUpload}
+                onChange={(e) => handlePhotoUpload('contents', e)}
                 disabled={contentsUploading}
               />
             </label>
@@ -299,12 +267,7 @@ export default function BoxDetail() {
 
       <hr />
 
-      <ItemsSection
-        items={items}
-        onAddItem={handleAddItem}
-        onAddItems={handleAddItems}
-        onRefreshItem={refreshItem}
-      />
+      <ItemsSection items={items} onAddItem={handleAddItem} onAddItems={handleAddItems} onRefreshItem={refreshItem} />
     </section>
   )
 }
@@ -468,8 +431,8 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
 
 function ItemCard({ item, onRefresh }) {
   const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(item.fields.Name || '')
-  const [notes, setNotes] = useState(item.fields.Notes || '')
+  const [name, setName] = useState(item.name || '')
+  const [notes, setNotes] = useState(item.notes || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -477,7 +440,7 @@ function ItemCard({ item, onRefresh }) {
     setSaving(true)
     setError('')
     try {
-      await updateRecord(ITEMS_TABLE_ID, item.id, { Name: name, Notes: notes })
+      await updateItem(item.id, { name, notes })
       await onRefresh()
       setEditing(false)
     } catch (err) {
@@ -486,8 +449,6 @@ function ItemCard({ item, onRefresh }) {
       setSaving(false)
     }
   }
-
-  const f = item.fields
 
   return (
     <li className="item-card">
@@ -507,23 +468,12 @@ function ItemCard({ item, onRefresh }) {
       ) : (
         <>
           <div className="item-card-top">
-            <strong>{f.Name || 'Untitled item'}</strong>
+            <strong>{item.name || 'Untitled item'}</strong>
             <button type="button" className="button small" onClick={() => setEditing(true)}>
               Edit
             </button>
           </div>
-          {f.Notes && <p className="item-notes">{f.Notes}</p>}
-          {f['Summary (Photo of Item(s))']?.value && (
-            <p className="item-ai-summary">{f['Summary (Photo of Item(s))'].value}</p>
-          )}
-          {(f['Photo of Item(s)'] || []).map((att) => (
-            <img
-              key={att.id}
-              src={att.thumbnails?.small?.url || att.url}
-              alt={f.Name || 'Item'}
-              className="item-photo"
-            />
-          ))}
+          {item.notes && <p className="item-notes">{item.notes}</p>}
         </>
       )}
       {error && <p className="error">{error}</p>}

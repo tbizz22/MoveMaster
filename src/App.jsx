@@ -1,40 +1,13 @@
-import { useEffect, useState } from 'react'
 import { HashRouter, Routes, Route, Link } from 'react-router-dom'
-import { checkConfigured } from './lib/airtable'
+import { supabase } from './lib/supabaseClient'
+import { useHousehold } from './lib/HouseholdContext'
 import BoxList from './pages/BoxList'
 import BoxDetail from './pages/BoxDetail'
 import NewBox from './pages/NewBox'
 import './App.css'
 
 function App() {
-  const [configured, setConfigured] = useState(null)
-
-  useEffect(() => {
-    checkConfigured().then(setConfigured)
-  }, [])
-
-  if (configured === null) {
-    return (
-      <section id="center">
-        <h1>Moving Master</h1>
-        <p>Checking configuration…</p>
-      </section>
-    )
-  }
-
-  if (!configured) {
-    return (
-      <section id="center">
-        <h1>Moving Master</h1>
-        <p className="error">
-          Airtable is not configured on the server — set <code>AIRTABLE_TOKEN</code> and{' '}
-          <code>AIRTABLE_BASE_ID</code> in <code>.env.local</code> (no <code>VITE_</code> prefix —
-          these stay server-side and are read by the API routes in <code>/api</code>, not the
-          browser).
-        </p>
-      </section>
-    )
-  }
+  const { householdName } = useHousehold()
 
   return (
     <HashRouter>
@@ -42,6 +15,12 @@ function App() {
         <Link to="/" className="app-title">
           Moving Master
         </Link>
+        <div className="app-header-right">
+          <span className="household-name">{householdName}</span>
+          <button type="button" className="button small" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
       </header>
       <main id="center">
         <Routes>
