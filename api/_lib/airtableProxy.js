@@ -83,6 +83,19 @@ export async function handleRecords(req, res, pathSegments, searchParams) {
     body,
   })
   const text = await upstream.text()
+  if (!upstream.ok) {
+    // TEMPORARY: surface the exact upstream URL (no token) we built, to
+    // diagnose a prod-only 403 that doesn't reproduce with an identical
+    // token/base id called directly. Remove once resolved.
+    let parsed
+    try {
+      parsed = JSON.parse(text)
+    } catch {
+      parsed = { raw: text }
+    }
+    sendJson(res, upstream.status, { ...parsed, debugUrl: url.toString(), debugSegments: pathSegments })
+    return
+  }
   res.statusCode = upstream.status
   res.setHeader('Content-Type', 'application/json')
   res.end(text)
