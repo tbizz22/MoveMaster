@@ -39,14 +39,7 @@ function sendJson(res, status, body) {
 
 export async function handleHealth(req, res) {
   const { token, baseId } = getEnv()
-  // TEMPORARY debug fields (masked token, non-secret base id) to diagnose a
-  // production-only 403 that doesn't reproduce locally with the same
-  // credentials. Remove once resolved — see BACKLOG.md / commit history.
-  sendJson(res, 200, {
-    configured: Boolean(token && baseId),
-    tokenPreview: token ? `${token.slice(0, 6)}…${token.slice(-4)} (len ${token.length})` : null,
-    baseId: baseId || null,
-  })
+  sendJson(res, 200, { configured: Boolean(token && baseId) })
 }
 
 // pathSegments: the parts of the Airtable REST path after `/v0/{baseId}/`,
@@ -83,19 +76,6 @@ export async function handleRecords(req, res, pathSegments, searchParams) {
     body,
   })
   const text = await upstream.text()
-  if (!upstream.ok) {
-    // TEMPORARY: surface the exact upstream URL (no token) we built, to
-    // diagnose a prod-only 403 that doesn't reproduce with an identical
-    // token/base id called directly. Remove once resolved.
-    let parsed
-    try {
-      parsed = JSON.parse(text)
-    } catch {
-      parsed = { raw: text }
-    }
-    sendJson(res, upstream.status, { ...parsed, debugUrl: url.toString(), debugSegments: pathSegments })
-    return
-  }
   res.statusCode = upstream.status
   res.setHeader('Content-Type', 'application/json')
   res.end(text)
