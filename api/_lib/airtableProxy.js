@@ -39,7 +39,14 @@ function sendJson(res, status, body) {
 
 export async function handleHealth(req, res) {
   const { token, baseId } = getEnv()
-  sendJson(res, 200, { configured: Boolean(token && baseId) })
+  // TEMPORARY debug fields (masked token, non-secret base id) to diagnose a
+  // production-only 403 that doesn't reproduce locally with the same
+  // credentials. Remove once resolved — see BACKLOG.md / commit history.
+  sendJson(res, 200, {
+    configured: Boolean(token && baseId),
+    tokenPreview: token ? `${token.slice(0, 6)}…${token.slice(-4)} (len ${token.length})` : null,
+    baseId: baseId || null,
+  })
 }
 
 // pathSegments: the parts of the Airtable REST path after `/v0/{baseId}/`,
