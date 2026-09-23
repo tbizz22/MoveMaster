@@ -1,0 +1,46 @@
+export const STICKER_TYPES = [
+  {
+    id: 'fragile',
+    label: 'Fragile',
+    variant: 'fragile',
+    emoji: '🔺',
+    text: 'FRAGILE',
+    subtext: 'Handle With Care',
+  },
+  {
+    id: 'this-side-up',
+    label: 'This Side Up',
+    variant: 'up',
+    emoji: '⬆️',
+    text: 'THIS SIDE UP',
+  },
+  {
+    id: 'do-not-stack',
+    label: 'Do Not Stack',
+    variant: 'stack',
+    emoji: '🚫',
+    text: 'DO NOT STACK',
+  },
+  {
+    id: 'heavy',
+    label: 'Heavy',
+    variant: 'heavy',
+    emoji: '🏋️',
+    text: 'HEAVY',
+    subtext: 'Lift With Care',
+  },
+  {
+    id: 'keep-dry',
+    label: 'Keep Dry',
+    variant: 'dry',
+    emoji: '☔',
+    text: 'KEEP DRY',
+  },
+  {
+    id: 'write-in',
+    label: 'Write-In Label',
+    variant: 'write-in',
+    emoji: '✏️',
+    text: 'Write-In Label',
+  },
+]

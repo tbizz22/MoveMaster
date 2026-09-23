@@ -17,6 +17,23 @@
   color: var(--text);
 }
 
+.app-nav {
+  display: flex;
+  gap: 16px;
+  margin-right: auto;
+  margin-left: 24px;
+}
+
+.app-nav a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-nav a:hover {
+  color: var(--text-h);
+}
+
 .app-title {
   font-size: 20px;
   font-weight: 600;
@@ -642,5 +659,174 @@ hr {
 
   .toolbar label {
     justify-content: space-between;
+  }
+}
+
+/* --- Stickers --- */
+
+.sticker-picker-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sticker-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sticker-picker-label {
+  font-size: 15px;
+}
+
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qty-stepper button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.qty-stepper input {
+  width: 44px;
+  text-align: center;
+  padding: 6px 4px;
+}
+
+.sticker-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.sticker-card {
+  aspect-ratio: 3 / 2;
+  border: 3px solid var(--text-h);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.sticker-emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.sticker-text {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.sticker-subtext {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sticker-fragile {
+  border-color: #d33;
+  color: #d33;
+}
+
+.sticker-fragile .sticker-subtext {
+  color: #d33;
+}
+
+.sticker-heavy {
+  border-color: #c77500;
+  color: #c77500;
+}
+
+.sticker-heavy .sticker-subtext {
+  color: #c77500;
+}
+
+.sticker-stack {
+  border-color: #d33;
+  color: #d33;
+}
+
+.sticker-dry,
+.sticker-up {
+  border-color: var(--text-h);
+  color: var(--text-h);
+}
+
+.sticker-write-in {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.sticker-write-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sticker-write-line {
+  flex: 1;
+  border-bottom: 1.5px solid var(--text-h);
+  margin: 6px 0;
+}
+
+.sticker-write-footer {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  #center {
+    max-width: none;
+    padding: 0.25in;
+  }
+
+  .sticker-sheet {
+    gap: 0.2in;
+  }
+
+  .sticker-card {
+    color: #000 !important;
+    border-color: #000 !important;
+  }
+
+  .sticker-card .sticker-subtext,
+  .sticker-write-footer {
+    color: #000 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .sticker-sheet {
+    grid-template-columns: 1fr;
   }
 }

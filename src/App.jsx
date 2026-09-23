@@ -4,6 +4,7 @@ import { useHousehold } from './lib/HouseholdContext'
 import BoxList from './pages/BoxList'
 import BoxDetail from './pages/BoxDetail'
 import NewBox from './pages/NewBox'
+import Stickers from './pages/Stickers'
 import './App.css'
 
 function App() {
@@ -11,10 +12,13 @@ function App() {
 
   return (
     <HashRouter>
-      <header className="app-header">
+      <header className="app-header no-print">
         <Link to="/" className="app-title">
           Moving Master
         </Link>
+        <nav className="app-nav">
+          <Link to="/stickers">Stickers</Link>
+        </nav>
         <div className="app-header-right">
           <span className="household-name">{householdName}</span>
           <button type="button" className="button small" onClick={() => supabase.auth.signOut()}>
@@ -27,6 +31,7 @@ function App() {
           <Route path="/" element={<BoxList />} />
           <Route path="/boxes/new" element={<NewBox />} />
           <Route path="/boxes/:id" element={<BoxDetail />} />
+          <Route path="/stickers" element={<Stickers />} />
         </Routes>
       </main>
     </HashRouter>
