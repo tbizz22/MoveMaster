@@ -30,6 +30,7 @@ export default function BoxDetail() {
   const [contentsUploading, setContentsUploading] = useState(false)
   const [exteriorUrl, setExteriorUrl] = useState(null)
   const [contentsUrl, setContentsUrl] = useState(null)
+  const [editingRoom, setEditingRoom] = useState(false)
 
   useEffect(() => {
     load()
@@ -70,6 +71,11 @@ export default function BoxDetail() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleRoomChange(v) {
+    await saveField('room', v)
+    setEditingRoom(false)
   }
 
   async function handlePhotoUpload(kind, e) {
@@ -146,7 +152,23 @@ export default function BoxDetail() {
         <div className="detail-fields">
           <div className="field-block">
             <p className="field-label">Room</p>
-            <ChipSelect options={ROOM_OPTIONS} value={f.room || ''} onChange={(v) => saveField('room', v)} />
+            {editingRoom ? (
+              <>
+                <ChipSelect options={ROOM_OPTIONS} value={f.room || ''} onChange={handleRoomChange} />
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <button type="button" className="button small" onClick={() => setEditingRoom(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="field-value-row">
+                <span className="field-value">{f.room || '—'}</span>
+                <button type="button" className="button small" onClick={() => setEditingRoom(true)}>
+                  Edit
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="field-block">
