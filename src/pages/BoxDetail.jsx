@@ -231,37 +231,18 @@ export default function BoxDetail() {
         </div>
 
         <div className="detail-photo">
-          <div className="photo-block">
-            <p className="field-label">Exterior photo</p>
-            {exteriorUrl && <img src={exteriorUrl} alt="Box exterior" className="box-photo" />}
-            <label className="button button-large">
-              {exteriorUploading ? 'Uploading…' : exteriorUrl ? 'Retake exterior photo' : '📷 Exterior photo'}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                onChange={(e) => handlePhotoUpload('exterior', e)}
-                disabled={exteriorUploading}
-              />
-            </label>
-          </div>
-
-          <div className="photo-block">
-            <p className="field-label">Contents photo</p>
-            {contentsUrl && <img src={contentsUrl} alt="Everything packed inside the box" className="box-photo" />}
-            <label className="button button-large">
-              {contentsUploading ? 'Uploading…' : contentsUrl ? 'Retake contents photo' : '📷 Contents photo'}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                onChange={(e) => handlePhotoUpload('contents', e)}
-                disabled={contentsUploading}
-              />
-            </label>
-          </div>
+          <PhotoTile
+            label="Exterior photo"
+            url={exteriorUrl}
+            uploading={exteriorUploading}
+            onChange={(e) => handlePhotoUpload('exterior', e)}
+          />
+          <PhotoTile
+            label="Contents photo"
+            url={contentsUrl}
+            uploading={contentsUploading}
+            onChange={(e) => handlePhotoUpload('contents', e)}
+          />
         </div>
       </div>
 
@@ -269,6 +250,28 @@ export default function BoxDetail() {
 
       <ItemsSection items={items} onAddItem={handleAddItem} onAddItems={handleAddItems} onRefreshItem={refreshItem} />
     </section>
+  )
+}
+
+function PhotoTile({ label, url, uploading, onChange }) {
+  return (
+    <div className="photo-tile">
+      <p className="field-label">{label}</p>
+      <label className={`photo-tile-frame${url ? ' has-photo' : ''}${uploading ? ' is-uploading' : ''}`}>
+        {url ? (
+          <>
+            <img src={url} alt={label} className="photo-tile-img" />
+            <span className="photo-tile-overlay">{uploading ? 'Uploading…' : 'Retake'}</span>
+          </>
+        ) : (
+          <span className="photo-tile-placeholder">
+            <span className="photo-tile-placeholder-icon">📷</span>
+            <span className="photo-tile-placeholder-label">{uploading ? 'Uploading…' : 'Add photo'}</span>
+          </span>
+        )}
+        <input type="file" accept="image/*" capture="environment" hidden onChange={onChange} disabled={uploading} />
+      </label>
+    </div>
   )
 }
 
