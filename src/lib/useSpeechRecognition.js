@@ -3,6 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const SpeechRecognitionImpl =
   typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
 
+function joinPhrases(...parts) {
+  return parts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
 export function useSpeechRecognition() {
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
@@ -26,22 +33,35 @@ export function useSpeechRecognition() {
       // Chrome's continuous mode periodically restarts its internal session
       // without firing onend and replays already-finalized results from
       // index 0 — appending those again caused dictated text to echo/duplicate.
+      // Each final result is a phrase the recognizer segmented at a pause, so
+      // join them with commas — that's what lets the item parser split them.
       let interim = ''
-      let final = ''
+      const finals = []
       for (let i = 0; i < event.results.length; i++) {
-        const text = event.results[i][0].transcript
+        const text = event.results[i][0].transcript.trim()
         if (event.results[i].isFinal) {
-          final += `${text} `
+          if (text) finals.push(text)
         } else {
           interim += text
         }
       }
-      sessionFinalRef.current = final.trim()
-      setTranscript(`${committedRef.current} ${sessionFinalRef.current} ${interim}`.trim())
+      sessionFinalRef.current = finals.join(', ')
+      setTranscript(joinPhrases(committedRef.current, sessionFinalRef.current, interim))
     }
 
     recognition.onerror = (event) => {
-      setError(event.error === 'no-speech' ? '' : `Speech recognition error: ${event.error}`)
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        setError('')
+      } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setError(
+          window.isSecureContext
+            ? 'Microphone access was blocked. Allow the microphone for this site in your browser settings, then tap Resume.'
+            : 'Microphone access requires HTTPS. Open this app via an https:// address.',
+        )
+      } else {
+        setError(`Speech recognition error: ${event.error}`)
+      }
+      setListening(false)
     }
 
     recognition.onend = () => {
@@ -69,7 +89,7 @@ export function useSpeechRecognition() {
   const resume = useCallback(() => {
     if (!recognitionRef.current) return
     setError('')
-    committedRef.current = `${committedRef.current} ${sessionFinalRef.current}`.trim()
+    committedRef.current = joinPhrases(committedRef.current, sessionFinalRef.current)
     sessionFinalRef.current = ''
     recognitionRef.current.start()
     setListening(true)
