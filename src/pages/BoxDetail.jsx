@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   getContainer,
@@ -13,6 +13,7 @@ import {
 } from '../lib/db'
 import { useHousehold } from '../lib/HouseholdContext'
 import { useSpeechRecognition } from '../lib/useSpeechRecognition'
+import { splitItemsWithAI } from '../lib/splitItems'
 import ChipSelect from '../components/ChipSelect'
 import Disclosure from '../components/Disclosure'
 import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
@@ -276,11 +277,12 @@ function PhotoTile({ label, url, uploading, onChange }) {
 }
 
 // Splits a spoken/typed blob like "coffee mugs, cereal bowls and a cutting board"
-// into separate item names.
+// into separate item names. Keyboard dictation often inserts no punctuation, so
+// the spoken words "comma" and "next" also work as separators.
 function parseItemNames(text) {
   return text
-    .split(/[,;\n]| and (?=[a-z])/gi)
-    .map((s) => s.trim().replace(/^(a|an|the)\s+/i, ''))
+    .split(/[,;\n]|\.(?=\s|$)|\s+and\s+(?=[a-z])|\b(?:comma|next)\b/gi)
+    .map((s) => s.trim().replace(/[.!?]+$/, '').replace(/^(a|an|the)\s+/i, ''))
     .filter(Boolean)
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
 }
@@ -292,6 +294,41 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
   const speech = useSpeechRecognition()
   const [dictating, setDictating] = useState(false)
   const [importing, setImporting] = useState(false)
+  // AI split result, tagged with the exact transcript it was computed for so
+  // it's ignored (falling back to the local parser) once the text changes.
+  const [aiSplit, setAiSplit] = useState(null)
+  const [splitting, setSplitting] = useState(false)
+  const [splitError, setSplitError] = useState('')
+  const wasListening = useRef(false)
+
+  async function runSmartSplit(transcript) {
+    if (!transcript.trim()) return
+    setSplitting(true)
+    setSplitError('')
+    try {
+      const names = await splitItemsWithAI(transcript)
+      setAiSplit({ transcript, names })
+    } catch (err) {
+      setSplitError(`${err.message}. Using basic splitting instead.`)
+    } finally {
+      setSplitting(false)
+    }
+  }
+
+  const transcriptRef = useRef('')
+  useEffect(() => {
+    transcriptRef.current = speech.transcript
+  }, [speech.transcript])
+
+  // Smart-split automatically when the mic stops. Waits briefly because the
+  // recognizer can still deliver its last final result just after stop().
+  useEffect(() => {
+    const stopped = wasListening.current && !speech.listening
+    wasListening.current = speech.listening
+    if (!stopped || !dictating) return
+    const timer = setTimeout(() => runSmartSplit(transcriptRef.current), 700)
+    return () => clearTimeout(timer)
+  }, [speech.listening, dictating])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -317,7 +354,12 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
     speech.stop()
   }
 
-  const preview = dictating || speech.transcript ? parseItemNames(speech.transcript) : []
+  const aiCurrent = aiSplit?.transcript === speech.transcript
+  const preview = aiCurrent
+    ? aiSplit.names
+    : dictating || speech.transcript
+      ? parseItemNames(speech.transcript)
+      : []
 
   async function handleImport() {
     if (preview.length === 0) return
@@ -326,6 +368,8 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
     try {
       await onAddItems(preview)
       speech.reset()
+      setAiSplit(null)
+      setSplitError('')
       setDictating(false)
     } catch (err) {
       setError(err.message)
@@ -337,6 +381,8 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
   function handleCancelDictation() {
     speech.stop()
     speech.reset()
+    setAiSplit(null)
+    setSplitError('')
     setDictating(false)
   }
 
@@ -380,8 +426,8 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
             )}
           </div>
           <p className="voice-hint">
-            Say what's in the box, e.g. "coffee mugs, cereal bowls, cutting board". Pause between
-            items — each phrase becomes its own item below.
+            Say what's in the box, e.g. "coffee mugs cereal bowls cutting board". When you tap
+            Stop, AI splits it into separate items for you to review below.
           </p>
           <textarea
             rows={3}
@@ -390,10 +436,24 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
             placeholder="Transcript will appear here — you can also edit it directly."
           />
           {speech.error && <p className="error">{speech.error}</p>}
+          {splitError && !aiCurrent && <p className="error">{splitError}</p>}
+
+          {!speech.listening && !aiCurrent && speech.transcript.trim() && (
+            <button
+              type="button"
+              className="button small"
+              onClick={() => runSmartSplit(speech.transcript)}
+              disabled={splitting}
+            >
+              {splitting ? 'Splitting…' : '✨ Smart split'}
+            </button>
+          )}
 
           {preview.length > 0 && (
             <div className="voice-preview">
-              <p className="field-label">Will add {preview.length} item(s):</p>
+              <p className="field-label">
+                Will add {preview.length} item(s){aiCurrent ? ' — split by AI, review before adding' : ''}:
+              </p>
               <ul className="voice-preview-list">
                 {preview.map((name, i) => (
                   <li key={i}>{name}</li>
@@ -407,7 +467,7 @@ function ItemsSection({ items, onAddItem, onAddItems, onRefreshItem }) {
               type="button"
               className="button primary"
               onClick={handleImport}
-              disabled={preview.length === 0 || importing}
+              disabled={preview.length === 0 || importing || splitting}
             >
               {importing ? 'Adding…' : `Add ${preview.length || ''} item(s)`}
             </button>
