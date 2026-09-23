@@ -137,3 +137,14 @@ export async function getSignedPhotoUrl(path) {
   if (error) throw error
   return data.signedUrl
 }
+
+// Updates the household's "if found" contact line shown on printed labels.
+// Any household member can set this (not just the owner), via an RPC since
+// the households table's own update policy is owner-only.
+export async function updateHouseholdContact(householdId, contactInfo) {
+  const { error } = await supabase.rpc('update_household_contact', {
+    p_household_id: householdId,
+    p_contact_info: contactInfo,
+  })
+  if (error) throw error
+}

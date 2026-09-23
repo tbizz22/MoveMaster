@@ -521,11 +521,12 @@ hr {
 
 .toggle-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .toggle-chip {
-  flex: 1;
+  flex: 1 1 120px;
   font: inherit;
   font-size: 15px;
   padding: 12px;
@@ -642,5 +643,208 @@ hr {
 
   .toolbar label {
     justify-content: space-between;
+  }
+}
+
+/* --- Label printing --- */
+
+.button-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.contact-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 20px;
+  max-width: 480px;
+}
+
+.contact-editor label {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.label-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Fixed 4x6 label. Colors are hardcoded rather than themed so a printed
+   label always comes out black-on-white regardless of the viewer's OS
+   dark-mode setting. */
+.label-page {
+  width: 4in;
+  height: 6in;
+  box-sizing: border-box;
+  background: #fff;
+  color: #111;
+  border: 1px solid #ccc;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans);
+  overflow: hidden;
+}
+
+.label-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.12in 0.18in;
+  color: #fff;
+  font-weight: 700;
+  font-size: 15pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.label-sequence {
+  font-size: 11pt;
+  font-weight: 600;
+}
+
+.label-body {
+  flex: 1;
+  display: flex;
+  gap: 0.15in;
+  padding: 0.18in;
+  min-height: 0;
+}
+
+.label-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08in;
+  min-width: 0;
+}
+
+.label-box-id {
+  font-family: var(--mono);
+  font-size: 34pt;
+  font-weight: 700;
+  line-height: 1;
+  color: #111;
+}
+
+.label-name {
+  font-size: 11pt;
+  color: #555;
+}
+
+.label-destination {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #111;
+}
+
+.label-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0.05in 0;
+}
+
+.label-badge {
+  font-size: 10pt;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1.5px solid currentColor;
+}
+
+.label-badge-fragile {
+  color: #c1121f;
+}
+
+.label-badge-heavy {
+  color: #b5720a;
+}
+
+.label-badge-side-up {
+  color: #1d4ed8;
+}
+
+.label-contents {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.label-contents-title {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 2px;
+}
+
+.label-contents-list {
+  font-size: 10.5pt;
+  line-height: 1.35;
+  color: #222;
+}
+
+.label-contents-empty {
+  font-style: italic;
+  color: #888;
+}
+
+.label-qr {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.label-qr img {
+  width: 1.15in;
+  height: 1.15in;
+  display: block;
+}
+
+.label-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.1in 0.18in;
+  border-top: 1px solid #ddd;
+  font-size: 8.5pt;
+  color: #555;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .app-header {
+    display: none !important;
+  }
+
+  #center {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .label-sheet {
+    gap: 0;
+  }
+
+  .label-page {
+    border: none;
+    box-shadow: none;
+    break-after: page;
+  }
+
+  .label-page:last-child {
+    break-after: auto;
+  }
+
+  @page {
+    size: 4in 6in;
+    margin: 0;
   }
 }

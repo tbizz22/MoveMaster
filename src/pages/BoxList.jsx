@@ -50,9 +50,19 @@ export default function BoxList() {
     <section>
       <div className="page-header">
         <h1>Boxes</h1>
-        <Link to="/boxes/new" className="button primary">
-          + New Box
-        </Link>
+        <div className="form-row" style={{ gap: 8 }}>
+          <Link
+            to={`/print?ids=${filtered.map((b) => b.id).join(',')}`}
+            className={`button${filtered.length ? '' : ' button-disabled'}`}
+            onClick={(e) => !filtered.length && e.preventDefault()}
+            aria-disabled={!filtered.length}
+          >
+            🖨️ Print {filtered.length ? `${filtered.length} ` : ''}Label{filtered.length === 1 ? '' : 's'}
+          </Link>
+          <Link to="/boxes/new" className="button primary">
+            + New Box
+          </Link>
+        </div>
       </div>
 
       <div className="toolbar">
