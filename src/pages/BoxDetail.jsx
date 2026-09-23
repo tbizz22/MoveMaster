@@ -125,9 +125,14 @@ export default function BoxDetail() {
     <section>
       <div className="page-header">
         <h1>{f.box_id || f.name || 'Untitled box'}</h1>
-        <Link to="/" className="button">
-          Back
-        </Link>
+        <div className="form-row" style={{ gap: 8 }}>
+          <Link to={`/print?ids=${f.id}`} className="button">
+            🖨️ Print Label
+          </Link>
+          <Link to="/" className="button">
+            Back
+          </Link>
+        </div>
       </div>
       {sequence && (
         <p className="sequence">
@@ -170,6 +175,14 @@ export default function BoxDetail() {
               aria-pressed={!!f.heavy}
             >
               🏋️ Heavy
+            </button>
+            <button
+              type="button"
+              className={`toggle-chip${f.this_side_up ? ' toggle-chip-active' : ''}`}
+              onClick={() => saveField('this_side_up', !f.this_side_up)}
+              aria-pressed={!!f.this_side_up}
+            >
+              ↑ This Side Up
             </button>
           </div>
 

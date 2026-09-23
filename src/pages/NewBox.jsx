@@ -19,6 +19,7 @@ export default function NewBox() {
     status: 'Packed',
     fragile: false,
     heavy: false,
+    this_side_up: false,
     notes: '',
     packed_date: today(),
   })
@@ -54,6 +55,7 @@ export default function NewBox() {
         status: form.status || null,
         fragile: form.fragile,
         heavy: form.heavy,
+        this_side_up: form.this_side_up,
         notes: form.notes || null,
         packed_date: form.packed_date || null,
         box_number: nextBoxNumber,
@@ -116,6 +118,14 @@ export default function NewBox() {
             aria-pressed={form.heavy}
           >
             🏋️ Heavy
+          </button>
+          <button
+            type="button"
+            className={`toggle-chip${form.this_side_up ? ' toggle-chip-active' : ''}`}
+            onClick={() => update('this_side_up', !form.this_side_up)}
+            aria-pressed={form.this_side_up}
+          >
+            ↑ This Side Up
           </button>
         </div>
 

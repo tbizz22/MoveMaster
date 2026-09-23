@@ -5,6 +5,7 @@ import BoxList from './pages/BoxList'
 import BoxDetail from './pages/BoxDetail'
 import NewBox from './pages/NewBox'
 import Stickers from './pages/Stickers'
+import PrintLabels from './pages/PrintLabels'
 import './App.css'
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/boxes/new" element={<NewBox />} />
           <Route path="/boxes/:id" element={<BoxDetail />} />
           <Route path="/stickers" element={<Stickers />} />
+          <Route path="/print" element={<PrintLabels />} />
         </Routes>
       </main>
     </HashRouter>
