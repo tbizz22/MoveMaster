@@ -187,7 +187,7 @@ export default function AuthGate({ children }) {
     }
     const { data: householdRow, error: householdError } = await supabase
       .from('households')
-      .select('id, name, join_code, owner_user_id')
+      .select('id, name, join_code, owner_user_id, contact_info')
       .eq('id', profile.default_household_id)
       .single()
     if (householdError || !householdRow) {
@@ -199,6 +199,7 @@ export default function AuthGate({ children }) {
       householdId: householdRow.id,
       householdName: householdRow.name,
       joinCode: householdRow.join_code,
+      contactInfo: householdRow.contact_info,
       role: householdRow.owner_user_id === auth.user.id ? 'owner' : 'member',
       refresh: loadHousehold,
     })

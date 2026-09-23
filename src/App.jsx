@@ -4,6 +4,7 @@ import { useHousehold } from './lib/HouseholdContext'
 import BoxList from './pages/BoxList'
 import BoxDetail from './pages/BoxDetail'
 import NewBox from './pages/NewBox'
+import PrintLabels from './pages/PrintLabels'
 import './App.css'
 
 function App() {
@@ -11,7 +12,7 @@ function App() {
 
   return (
     <HashRouter>
-      <header className="app-header">
+      <header className="app-header no-print">
         <Link to="/" className="app-title">
           Moving Master
         </Link>
@@ -27,6 +28,7 @@ function App() {
           <Route path="/" element={<BoxList />} />
           <Route path="/boxes/new" element={<NewBox />} />
           <Route path="/boxes/:id" element={<BoxDetail />} />
+          <Route path="/print" element={<PrintLabels />} />
         </Routes>
       </main>
     </HashRouter>
