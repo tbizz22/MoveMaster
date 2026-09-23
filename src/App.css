@@ -297,6 +297,21 @@ textarea {
   margin-bottom: 8px;
 }
 
+.field-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.field-value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .box-photo {
   width: 100%;
   border-radius: 8px;

@@ -37,14 +37,11 @@ export async function createContainer(householdId, fields) {
 }
 
 export async function updateContainer(id, fields) {
-  const { data, error } = await supabase
-    .from('containers')
-    .update(fields)
-    .eq('id', id)
-    .select()
-    .single()
+  const { error } = await supabase.from('containers').update(fields).eq('id', id)
   if (error) throw error
-  return data
+  // Re-fetch from the view so the caller gets the derived box_id back too
+  // (matters when room/box_number changed).
+  return getContainer(id)
 }
 
 // Just container_id, for computing per-box item counts on the list view
