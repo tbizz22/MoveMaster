@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { createContainer, listContainers } from '../lib/db'
 import { useHousehold } from '../lib/HouseholdContext'
-import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
+import { STATUS_OPTIONS, STATUS_COLORS, mergeRoomOptions } from '../lib/constants'
 import ChipSelect from '../components/ChipSelect'
 import Disclosure from '../components/Disclosure'
 
@@ -26,12 +26,25 @@ export default function NewBox() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [existingBoxes, setExistingBoxes] = useState(null)
+  const [customRooms, setCustomRooms] = useState([])
 
   useEffect(() => {
     listContainers()
       .then(setExistingBoxes)
       .catch((err) => setError(err.message))
   }, [])
+
+  const roomOptions = useMemo(
+    () => mergeRoomOptions([...(existingBoxes || []).map((b) => b.room), ...customRooms]),
+    [existingBoxes, customRooms],
+  )
+
+  function handleRoomChange(value) {
+    if (value && !roomOptions.some((r) => r.toLowerCase() === value.toLowerCase())) {
+      setCustomRooms((rooms) => [...rooms, value])
+    }
+    update('room', value)
+  }
 
   const nextBoxNumber = useMemo(() => {
     if (!form.room || !existingBoxes) return null
@@ -80,7 +93,7 @@ export default function NewBox() {
       <form className="form" onSubmit={handleSubmit}>
         <div className="field-block">
           <p className="field-label">Room</p>
-          <ChipSelect options={ROOM_OPTIONS} value={form.room} onChange={(v) => update('room', v)} />
+          <ChipSelect options={roomOptions} value={form.room} onChange={handleRoomChange} allowCustom />
         </div>
 
         {form.room && (

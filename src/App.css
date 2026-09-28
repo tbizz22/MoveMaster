@@ -536,6 +536,24 @@ hr {
   font-weight: 600;
 }
 
+.chip-add {
+  border-style: dashed;
+  color: var(--text);
+}
+
+.chip-add-input {
+  font: inherit;
+  font-size: 15px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border);
+  background: var(--bg);
+  color: var(--text-h);
+  min-height: 44px;
+  width: 140px;
+  box-sizing: border-box;
+}
+
 .toggle-row {
   display: flex;
   flex-wrap: wrap;
