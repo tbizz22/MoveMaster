@@ -11,6 +11,30 @@ export const ROOM_OPTIONS = [
   'Other',
 ]
 
+// Rooms aren't a fixed enum in the database (containers.room is plain text),
+// so ROOM_OPTIONS above is just the default suggestion list. This merges in
+// any room names already used by the household's own boxes — e.g. a custom
+// room someone typed into the picker — so it shows up as a selectable chip
+// everywhere, not just wherever it was first created. Defaults come first
+// (in their declared order), then custom rooms alphabetically, with "Other"
+// always pinned last.
+export function mergeRoomOptions(existingRoomNames = []) {
+  const seen = new Set(ROOM_OPTIONS.map((r) => r.toLowerCase()))
+  const extra = []
+  for (const name of existingRoomNames) {
+    const trimmed = name?.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    extra.push(trimmed)
+  }
+  extra.sort((a, b) => a.localeCompare(b))
+  const defaults = ROOM_OPTIONS.filter((r) => r !== 'Other')
+  const hasOther = ROOM_OPTIONS.includes('Other')
+  return hasOther ? [...defaults, ...extra, 'Other'] : [...defaults, ...extra]
+}
+
 export const STATUS_OPTIONS = ['Packed', 'Loaded', 'Delivered', 'Unpacked']
 
 export const STATUS_COLORS = {

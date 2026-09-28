@@ -16,7 +16,7 @@ import { useSpeechRecognition } from '../lib/useSpeechRecognition'
 import { splitItemsWithAI } from '../lib/splitItems'
 import ChipSelect from '../components/ChipSelect'
 import Disclosure from '../components/Disclosure'
-import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
+import { STATUS_OPTIONS, STATUS_COLORS, mergeRoomOptions } from '../lib/constants'
 
 export default function BoxDetail() {
   const { id } = useParams()
@@ -30,10 +30,23 @@ export default function BoxDetail() {
   const [contentsUploading, setContentsUploading] = useState(false)
   const [exteriorUrl, setExteriorUrl] = useState(null)
   const [contentsUrl, setContentsUrl] = useState(null)
+  const [customRooms, setCustomRooms] = useState([])
 
   useEffect(() => {
     load()
   }, [id])
+
+  const roomOptions = useMemo(
+    () => mergeRoomOptions([...(allBoxes || []).map((b) => b.room), ...customRooms]),
+    [allBoxes, customRooms],
+  )
+
+  function handleRoomChange(value) {
+    if (value && !roomOptions.some((r) => r.toLowerCase() === value.toLowerCase())) {
+      setCustomRooms((rooms) => [...rooms, value])
+    }
+    saveField('room', value)
+  }
 
   async function load() {
     setError('')
@@ -146,7 +159,7 @@ export default function BoxDetail() {
         <div className="detail-fields">
           <div className="field-block">
             <p className="field-label">Room</p>
-            <ChipSelect options={ROOM_OPTIONS} value={f.room || ''} onChange={(v) => saveField('room', v)} />
+            <ChipSelect options={roomOptions} value={f.room || ''} onChange={handleRoomChange} allowCustom />
           </div>
 
           <div className="field-block">
@@ -225,7 +238,7 @@ export default function BoxDetail() {
                 onChange={(e) => saveField('destination_room', e.target.value)}
               >
                 <option value="">—</option>
-                {ROOM_OPTIONS.map((r) => (
+                {roomOptions.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

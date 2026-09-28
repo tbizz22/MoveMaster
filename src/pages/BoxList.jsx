@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listContainers, listItemCounts } from '../lib/db'
-import { ROOM_OPTIONS, STATUS_OPTIONS, STATUS_COLORS } from '../lib/constants'
+import { STATUS_OPTIONS, STATUS_COLORS, mergeRoomOptions } from '../lib/constants'
 
 export default function BoxList() {
   const [boxes, setBoxes] = useState(null)
@@ -34,6 +34,8 @@ export default function BoxList() {
       return true
     })
   }, [boxes, roomFilter, statusFilter])
+
+  const roomOptions = useMemo(() => mergeRoomOptions((boxes || []).map((b) => b.room)), [boxes])
 
   const grouped = useMemo(() => {
     if (!groupByRoom) return { All: filtered }
@@ -70,7 +72,7 @@ export default function BoxList() {
           Room
           <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)}>
             <option value="">All</option>
-            {ROOM_OPTIONS.map((r) => (
+            {roomOptions.map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
